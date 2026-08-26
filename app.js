@@ -43,6 +43,7 @@
     setupBackdrop:$('setupBackdrop'),
     barbellWeight:$('barbellWeight'),
     sledWeight:$('sledWeight'),
+    legacyEquipWeight:$('equipmentWeight'),
     unitSegment:$('unitSegment'),
     equipSegment:$('equipmentSegment'),
     plateGrid:$('plateGrid'),
@@ -81,6 +82,7 @@
   }
 
   function flashSaved(message='Saved'){
+    if(!els.saveState) return;
     els.saveState.textContent=message;
     clearTimeout(flashSaved.timer);
     flashSaved.timer=setTimeout(()=>{ els.saveState.textContent='Changes save automatically.'; },1500);
@@ -112,39 +114,49 @@
   }
 
   function renderSegments(){
-    els.unitSegment.querySelectorAll('button').forEach(b=>{
-      const active=b.dataset.unit===state.unit;
-      b.classList.toggle('active',active);
-      b.setAttribute('aria-pressed',String(active));
-    });
-    els.equipSegment.querySelectorAll('button').forEach(b=>{
-      const active=b.dataset.equipment===state.equipment;
-      b.classList.toggle('active',active);
-      b.setAttribute('aria-pressed',String(active));
-    });
+    if(els.unitSegment){
+      els.unitSegment.querySelectorAll('button').forEach(b=>{
+        const active=b.dataset.unit===state.unit;
+        b.classList.toggle('active',active);
+        b.setAttribute('aria-pressed',String(active));
+      });
+    }
+    if(els.equipSegment){
+      els.equipSegment.querySelectorAll('button').forEach(b=>{
+        const active=b.dataset.equipment===state.equipment;
+        b.classList.toggle('active',active);
+        b.setAttribute('aria-pressed',String(active));
+      });
+    }
     document.querySelectorAll('.unitText').forEach(e=>e.textContent=state.unit);
   }
 
   function renderInputs(){
     renderSegments();
-    els.includeEquipment.checked=state.includeEquipment;
+    if(els.includeEquipment) els.includeEquipment.checked=state.includeEquipment;
     const isBar=state.equipment==='barbell';
-    els.includeLabel.textContent=isBar?'Include barbell weight':'Include sled resistance';
-    els.includeHelp.textContent=state.includeEquipment
-      ? 'Your target represents the full loaded weight.'
-      : 'Your target represents plate weight only.';
-    if(state.targetUg!=null && document.activeElement!==els.target){
+    if(els.includeLabel) els.includeLabel.textContent=isBar?'Include barbell weight':'Include sled resistance';
+    if(els.includeHelp){
+      els.includeHelp.textContent=state.includeEquipment
+        ? 'Your target represents the full loaded weight.'
+        : 'Your target represents plate weight only.';
+    }
+    if(els.target && state.targetUg!=null && document.activeElement!==els.target){
       els.target.value=fmt(fromUg(state.targetUg,state.unit),3);
     }
-    if(document.activeElement!==els.barbellWeight){
+    if(els.barbellWeight && document.activeElement!==els.barbellWeight){
       els.barbellWeight.value=fmt(fromUg(state.equipmentUg.barbell,state.unit),3);
     }
-    if(document.activeElement!==els.sledWeight){
+    if(els.sledWeight && document.activeElement!==els.sledWeight){
       els.sledWeight.value=fmt(fromUg(state.equipmentUg.sled,state.unit),3);
+    }
+    if(els.legacyEquipWeight && document.activeElement!==els.legacyEquipWeight){
+      els.legacyEquipWeight.value=fmt(fromUg(state.equipmentUg[state.equipment],state.unit),3);
     }
   }
 
   function renderPlates(){
+    if(!els.plateGrid || !els.customList) return;
     els.plateGrid.innerHTML='';
     state.plates.forEach(p=>{
       const b=document.createElement('button');
@@ -169,6 +181,7 @@
   }
 
   function renderEmptyVisual(){
+    if(!els.liveVisual) return;
     if(state.equipment==='barbell'){
       els.liveVisual.innerHTML=`<div class="visual-label">Barbell preview</div><div class="bar-visual"><div class="bar-shaft"></div><div class="bar-collar left"></div><div class="bar-collar right"></div><div class="visual-empty">Enter a target weight to build the load.</div></div>`;
     }else{
@@ -306,9 +319,9 @@
     if(!combo.length)return '<li>No plates are needed.</li>';
     const groups=[];
     combo.forEach(p=>{
-      const last=groups.at(-1);
+      const last=groups.length?groups[groups.length-1]:null;
       if(last&&last.ug===p.ug) last.count++;
-      else groups.push({p,count:1});
+      else groups.push({p,count:1,ug:p.ug});
     });
     return groups.map(g=>`<li>Add ${g.count>1?`${g.count} × `:''}${displayPlate(g.p)} plate${g.count>1?'s':''} to <strong>each side</strong>.</li>`).join('');
   }
@@ -322,14 +335,39 @@
   }
 
   function showError(msg){
+    if(!els.result) return;
     els.result.innerHTML=`<span class="status error">! Check input</span><p class="note">${msg}</p>`;
     els.result.classList.add('show');
   }
 
   function clearCalculation(){
-    els.result.innerHTML='';
-    els.result.classList.remove('show');
+    if(els.result){
+      els.result.innerHTML='';
+      els.result.classList.remove('show');
+    }
     renderEmptyVisual();
+  }
+
+  function syncInputsToState(){
+    if(els.target){
+      const t=Number(els.target.value);
+      state.targetUg=els.target.value!==''&&Number.isFinite(t)&&t>=0?toUg(t,state.unit):null;
+    }
+
+    if(els.barbellWeight){
+      const bar=Number(els.barbellWeight.value);
+      if(Number.isFinite(bar)&&bar>=0) state.equipmentUg.barbell=toUg(bar,state.unit);
+    }
+    if(els.sledWeight){
+      const sled=Number(els.sledWeight.value);
+      if(Number.isFinite(sled)&&sled>=0) state.equipmentUg.sled=toUg(sled,state.unit);
+    }
+    if(els.legacyEquipWeight && !els.barbellWeight && !els.sledWeight){
+      const legacy=Number(els.legacyEquipWeight.value);
+      if(Number.isFinite(legacy)&&legacy>=0) state.equipmentUg[state.equipment]=toUg(legacy,state.unit);
+    }
+
+    if(els.includeEquipment) state.includeEquipment=els.includeEquipment.checked;
   }
 
   function calculate(){
@@ -360,27 +398,29 @@
       const r=solved.exact;
       const plateUg=r.sumUg*2;
       const totalUg=plateUg+equipUg;
-      els.liveVisual.innerHTML=visualHTML(r.combo,equipUg,plateUg);
+      if(els.liveVisual) els.liveVisual.innerHTML=visualHTML(r.combo,equipUg,plateUg);
 
       const equipmentSummary=state.includeEquipment
         ? `<div class="summary-box"><span>${state.equipment==='barbell'?'Barbell weight':'Sled resistance'}</span><strong>${displayWeightUg(equipUg)}</strong></div><div class="summary-box"><span>Loaded total</span><strong>${displayWeightUg(totalUg)}</strong></div>`
         : '';
 
-      els.result.innerHTML=`
-        <span class="status exact">✓ Exact even load</span>
-        <div class="big-number">${displayWeightUg(r.sumUg)}</div>
-        <div class="big-caption">plates on each side</div>
-        <div class="side-title">Load on each side, inside → outside</div>
-        <div class="plates">${platesHTML(r.combo)}</div>
-        <div class="summary-grid">
-          <div class="summary-box"><span>Plate weight</span><strong>${displayWeightUg(plateUg)}</strong></div>
-          <div class="summary-box"><span>Total plates</span><strong>${r.combo.length*2}</strong></div>
-          ${equipmentSummary}
-        </div>
-        <ol class="steps">${groupedSteps(r.combo)}</ol>`;
+      if(els.result){
+        els.result.innerHTML=`
+          <span class="status exact">✓ Exact even load</span>
+          <div class="big-number">${displayWeightUg(r.sumUg)}</div>
+          <div class="big-caption">plates on each side</div>
+          <div class="side-title">Load on each side, inside → outside</div>
+          <div class="plates">${platesHTML(r.combo)}</div>
+          <div class="summary-grid">
+            <div class="summary-box"><span>Plate weight</span><strong>${displayWeightUg(plateUg)}</strong></div>
+            <div class="summary-box"><span>Total plates</span><strong>${r.combo.length*2}</strong></div>
+            ${equipmentSummary}
+          </div>
+          <ol class="steps">${groupedSteps(r.combo)}</ol>`;
+      }
     }else{
       const primary=solved.lower||solved.higher;
-      if(primary){
+      if(primary && els.liveVisual){
         const plateUg=primary.sumUg*2;
         els.liveVisual.innerHTML=visualHTML(primary.combo,equipUg,plateUg);
       }
@@ -388,32 +428,17 @@
         solved.lower?altBlock(solved.lower,state.targetUg,equipUg,state.includeEquipment,'Closest lighter'):'',
         solved.higher?altBlock(solved.higher,state.targetUg,equipUg,state.includeEquipment,'Closest heavier'):''
       ].join('');
-      els.result.innerHTML=`
-        <span class="status near">≈ No exact match</span>
-        <h3 class="section-title">Nearest even loads</h3>
-        <p class="note">Your available plates cannot hit ${displayWeightUg(state.targetUg)} exactly while keeping both sides equal.</p>
-        <div class="alternatives">${alts}</div>`;
+      if(els.result){
+        els.result.innerHTML=`
+          <span class="status near">≈ No exact match</span>
+          <h3 class="section-title">Nearest even loads</h3>
+          <p class="note">Your available plates cannot hit ${displayWeightUg(state.targetUg)} exactly while keeping both sides equal.</p>
+          <div class="alternatives">${alts}</div>`;
+      }
     }
 
-    els.result.classList.add('show');
+    if(els.result) els.result.classList.add('show');
     save();
-  }
-
-  function syncInputsToState(){
-    const t=Number(els.target.value);
-    state.targetUg=els.target.value!==''&&Number.isFinite(t)&&t>=0?toUg(t,state.unit):null;
-
-    const bar=Number(els.barbellWeight.value);
-    if(Number.isFinite(bar)&&bar>=0){
-      state.equipmentUg.barbell=toUg(bar,state.unit);
-    }
-
-    const sled=Number(els.sledWeight.value);
-    if(Number.isFinite(sled)&&sled>=0){
-      state.equipmentUg.sled=toUg(sled,state.unit);
-    }
-
-    state.includeEquipment=els.includeEquipment.checked;
   }
 
   function setUnit(unit){
@@ -438,6 +463,7 @@
   }
 
   function addPlate(){
+    if(!els.customPlate) return;
     const v=Number(els.customPlate.value);
     if(!Number.isFinite(v)||v<=0)return;
     const ug=toUg(v,state.unit);
@@ -460,15 +486,17 @@
   }
 
   function openSetup(){
+    if(!els.setupBackdrop) return;
     els.setupBackdrop.hidden=false;
     document.body.classList.add('sheet-open');
-    requestAnimationFrame(()=>els.closeSetup.focus());
+    requestAnimationFrame(()=>{ if(els.closeSetup) els.closeSetup.focus(); });
   }
 
   function closeSetup(){
+    if(!els.setupBackdrop) return;
     els.setupBackdrop.hidden=true;
     document.body.classList.remove('sheet-open');
-    els.openSetup.focus();
+    if(els.openSetup) els.openSetup.focus();
   }
 
   document.addEventListener('click',e=>{
@@ -500,53 +528,66 @@
     }
   });
 
-  els.openSetup.addEventListener('click',openSetup);
-  els.closeSetup.addEventListener('click',closeSetup);
-  els.setupBackdrop.addEventListener('click',e=>{ if(e.target===els.setupBackdrop) closeSetup(); });
-  document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!els.setupBackdrop.hidden) closeSetup(); });
+  if(els.openSetup) els.openSetup.addEventListener('click',openSetup);
+  if(els.closeSetup) els.closeSetup.addEventListener('click',closeSetup);
+  if(els.setupBackdrop) els.setupBackdrop.addEventListener('click',e=>{ if(e.target===els.setupBackdrop) closeSetup(); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&els.setupBackdrop&&!els.setupBackdrop.hidden) closeSetup(); });
 
-  els.addCustom.addEventListener('click',addPlate);
-  els.resetInventory.addEventListener('click',resetPlates);
-  els.customPlate.addEventListener('keydown',e=>{
-    if(e.key==='Enter'){
-      e.preventDefault();
-      addPlate();
-    }
-  });
+  if(els.addCustom) els.addCustom.addEventListener('click',addPlate);
+  if(els.resetInventory) els.resetInventory.addEventListener('click',resetPlates);
+  if(els.customPlate){
+    els.customPlate.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){
+        e.preventDefault();
+        addPlate();
+      }
+    });
+  }
 
-  els.includeEquipment.addEventListener('change',()=>{
-    state.includeEquipment=els.includeEquipment.checked;
-    renderInputs();
-    save();
-    if(state.targetUg!=null)calculate();
-    else clearCalculation();
-  });
-
-  els.target.addEventListener('input',()=>{
-    const v=Number(els.target.value);
-    state.targetUg=els.target.value!==''&&Number.isFinite(v)&&v>=0?toUg(v,state.unit):null;
-    save();
-    if(state.targetUg!=null)calculate();
-    else clearCalculation();
-  });
-
-  els.barbellWeight.addEventListener('input',()=>{
-    const v=Number(els.barbellWeight.value);
-    if(Number.isFinite(v)&&v>=0){
-      state.equipmentUg.barbell=toUg(v,state.unit);
+  if(els.includeEquipment){
+    els.includeEquipment.addEventListener('change',()=>{
+      state.includeEquipment=els.includeEquipment.checked;
+      renderInputs();
       save();
-      if(state.equipment==='barbell'&&state.includeEquipment&&state.targetUg!=null) calculate();
-    }
-  });
+      if(state.targetUg!=null)calculate();
+      else clearCalculation();
+    });
+  }
 
-  els.sledWeight.addEventListener('input',()=>{
-    const v=Number(els.sledWeight.value);
-    if(Number.isFinite(v)&&v>=0){
-      state.equipmentUg.sled=toUg(v,state.unit);
+  if(els.target){
+    els.target.addEventListener('input',()=>{
+      const v=Number(els.target.value);
+      state.targetUg=els.target.value!==''&&Number.isFinite(v)&&v>=0?toUg(v,state.unit):null;
       save();
-      if(state.equipment==='sled'&&state.includeEquipment&&state.targetUg!=null) calculate();
-    }
-  });
+      if(state.targetUg!=null)calculate();
+      else clearCalculation();
+    });
+  }
+
+  function bindEquipmentWeightInput(el,type){
+    if(!el) return;
+    el.addEventListener('input',()=>{
+      const v=Number(el.value);
+      if(Number.isFinite(v)&&v>=0){
+        state.equipmentUg[type]=toUg(v,state.unit);
+        save();
+        if(state.equipment===type&&state.includeEquipment&&state.targetUg!=null) calculate();
+      }
+    });
+  }
+  bindEquipmentWeightInput(els.barbellWeight,'barbell');
+  bindEquipmentWeightInput(els.sledWeight,'sled');
+
+  if(els.legacyEquipWeight){
+    els.legacyEquipWeight.addEventListener('input',()=>{
+      const v=Number(els.legacyEquipWeight.value);
+      if(Number.isFinite(v)&&v>=0){
+        state.equipmentUg[state.equipment]=toUg(v,state.unit);
+        save();
+        if(state.includeEquipment&&state.targetUg!=null) calculate();
+      }
+    });
+  }
 
   load();
   renderInputs();
