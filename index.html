@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icon-192.png" />
   <title>Plate Loader</title>
-  <link rel="stylesheet" href="style.css?v=5">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 <main class="app">
@@ -30,6 +30,15 @@
       <input id="targetWeight" type="number" min="0" step="any" inputmode="decimal" placeholder="225" autocomplete="off">
       <span class="target-unit unitText">lb</span>
     </div>
+
+    <div style="margin-top:14px">
+      <label class="target-label">Equipment</label>
+      <div class="segmented" id="equipmentSegment">
+        <button type="button" data-equipment="barbell" class="active" aria-pressed="true">Barbell</button>
+        <button type="button" data-equipment="sled" aria-pressed="false">Sled</button>
+      </div>
+    </div>
+
     <div class="toggle-row main-toggle">
       <div class="toggle-copy">
         <strong id="includeLabel">Include barbell weight</strong>
@@ -75,12 +84,8 @@
 
     <div class="settings-scroll">
       <section class="settings-group">
-        <h3>Equipment</h3>
-        <p class="settings-description">Choose the equipment this calculator should load.</p>
-        <div class="segmented" id="equipmentSegment">
-          <button type="button" data-equipment="barbell" class="active" aria-pressed="true">Barbell</button>
-          <button type="button" data-equipment="sled" aria-pressed="false">Sled</button>
-        </div>
+        <h3>Starting weight / resistance</h3>
+        <p class="settings-description">Set the empty barbell weight or sled starting resistance for the equipment selected on the main screen.</p>
         <div class="field setup-field">
           <label class="label" for="equipmentWeight"><span id="equipmentName">Barbell</span> <span id="equipmentWeightLabel">starting weight</span></label>
           <div class="input-wrap">
@@ -121,6 +126,6 @@
   </section>
 </div>
 
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
