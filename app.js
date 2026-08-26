@@ -16,10 +16,10 @@
 
   const $ = id => document.getElementById(id);
   const els = {
-    runtime:$('runtimeStatus'), target:$('targetWeight'), equipWeight:$('equipmentWeight'), includeEquipment:$('includeEquipment'),
+    target:$('targetWeight'), equipWeight:$('equipmentWeight'), equipWeightField:$('equipmentWeightField'), includeEquipment:$('includeEquipment'),
     unitSegment:$('unitSegment'), equipSegment:$('equipmentSegment'), equipmentName:$('equipmentName'), plateGrid:$('plateGrid'),
     customPlate:$('customPlate'), addCustom:$('addCustom'), customList:$('customList'), saveInventory:$('saveInventory'),
-    resetInventory:$('resetInventory'), saveState:$('saveState'), calculate:$('calculateBtn'), result:$('resultCard'), liveVisual:$('liveVisual')
+    resetInventory:$('resetInventory'), saveState:$('saveState'), result:$('resultCard'), liveVisual:$('liveVisual')
   };
 
   function toUg(value, unit){
@@ -82,6 +82,7 @@
   function renderInputs(){
     renderSegments();
     els.includeEquipment.checked=state.includeEquipment;
+    els.equipWeightField.hidden=!state.includeEquipment;
     if(state.targetUg!=null && document.activeElement!==els.target) els.target.value=fmt(fromUg(state.targetUg,state.unit),3);
     if(document.activeElement!==els.equipWeight) els.equipWeight.value=fmt(fromUg(state.equipmentUg[state.equipment],state.unit),3);
   }
@@ -99,9 +100,9 @@
   }
   function renderEmptyVisual(){
     if(state.equipment==='barbell'){
-      els.liveVisual.innerHTML=`<div class="visual-label">Barbell preview</div><div class="bar-visual"><div class="bar-shaft"></div><div class="bar-collar left"></div><div class="bar-collar right"></div><div class="visual-empty">Enter a target and calculate to build the visual.</div></div>`;
+      els.liveVisual.innerHTML=`<div class="visual-label">Barbell preview</div><div class="bar-visual"><div class="bar-shaft"></div><div class="bar-collar left"></div><div class="bar-collar right"></div><div class="visual-empty">Enter a target to build the visual.</div></div>`;
     }else{
-      els.liveVisual.innerHTML=`<div class="visual-label">Sled preview</div><div class="sled-visual"><div class="sled-frame"></div><div class="sled-platform"></div><div class="sled-horn left"></div><div class="sled-horn right"></div><div class="visual-empty">Enter a target and calculate to build the visual.</div></div>`;
+      els.liveVisual.innerHTML=`<div class="visual-label">Sled preview</div><div class="sled-visual"><div class="sled-frame"></div><div class="sled-platform"></div><div class="sled-horn left"></div><div class="sled-horn right"></div><div class="visual-empty">Enter a target to build the visual.</div></div>`;
     }
   }
 
@@ -167,11 +168,14 @@
 
   function plateHeight(p,combo){const max=Math.max(...combo.map(x=>x.ug),1),min=Math.min(...combo.map(x=>x.ug),max);if(max===min)return 72;return Math.round(44+((p.ug-min)/(max-min))*50);}
   function discsHTML(combo){return combo.map(p=>`<div class="plate-disc" style="height:${plateHeight(p,combo)}px"><span>${fmt(fromUg(p.ug,state.unit),2)}</span></div>`).join('');}
-  function visualHTML(combo,equipUg,totalUg){
+  function visualHTML(combo,equipUg,plateUg){
     const discs=discsHTML(combo), perSide=combo.reduce((s,p)=>s+p.ug,0);
     const perSideText=combo.length?combo.map(p=>fmt(fromUg(p.ug,state.unit),2)).join(' + '):'No plates';
-    if(state.equipment==='barbell') return `<div class="visual-label">Barbell · ${displayWeightUg(equipUg)} empty weight</div><div class="bar-visual"><div class="bar-center-label">${displayWeightUg(totalUg)} total</div><div class="bar-shaft"></div><div class="bar-collar left"></div><div class="bar-collar right"></div><div class="bar-plates left">${discs}</div><div class="bar-plates right">${discs}</div>${combo.length?'':'<div class="visual-empty">No plates needed for this load.</div>'}</div><div class="visual-total"><strong>${perSideText}</strong> on each side</div>`;
-    return `<div class="visual-label">Sled · ${displayWeightUg(equipUg)} starting weight/resistance</div><div class="sled-visual"><div class="sled-frame"></div><div class="sled-platform"></div><div class="sled-horn left"></div><div class="sled-horn right"></div><div class="sled-plates left">${discs}</div><div class="sled-plates right">${discs}</div>${combo.length?'':'<div class="visual-empty">No plates needed for this load.</div>'}</div><div class="visual-total"><strong>${displayWeightUg(totalUg)}</strong> total · ${displayWeightUg(perSide)} plates per side</div>`;
+    const displayedTotal=state.includeEquipment?plateUg+equipUg:plateUg;
+    const equipmentDetail=state.includeEquipment?` · ${displayWeightUg(equipUg)} ${state.equipment==='barbell'?'empty weight':'starting weight/resistance'}`:'';
+    const totalLabel=state.includeEquipment?'total':'plates';
+    if(state.equipment==='barbell') return `<div class="visual-label">Barbell${equipmentDetail}</div><div class="bar-visual"><div class="bar-center-label">${displayWeightUg(displayedTotal)} ${totalLabel}</div><div class="bar-shaft"></div><div class="bar-collar left"></div><div class="bar-collar right"></div><div class="bar-plates left">${discs}</div><div class="bar-plates right">${discs}</div>${combo.length?'':'<div class="visual-empty">No plates needed for this load.</div>'}</div><div class="visual-total"><strong>${perSideText}</strong> on each side</div>`;
+    return `<div class="visual-label">Sled${equipmentDetail}</div><div class="sled-visual"><div class="sled-frame"></div><div class="sled-platform"></div><div class="sled-horn left"></div><div class="sled-horn right"></div><div class="sled-plates left">${discs}</div><div class="sled-plates right">${discs}</div>${combo.length?'':'<div class="visual-empty">No plates needed for this load.</div>'}</div><div class="visual-total"><strong>${displayWeightUg(displayedTotal)}</strong> ${totalLabel} · ${displayWeightUg(perSide)} plates per side</div>`;
   }
   function platesHTML(combo){return combo.length?combo.map(p=>`<span class="plate-pill">${displayPlate(p)}</span>`).join(''):'<span class="note">No plates needed</span>';}
   function groupedSteps(combo){
@@ -184,6 +188,11 @@
     return `<div class="alternative"><h3>${label}: ${displayWeightUg(interpreted)}</h3><p>${displayWeightUg(Math.abs(diff))} ${diff<0?'lighter':'heavier'} than target.</p><div class="side-title">Each side</div><div class="plates">${platesHTML(r.combo)}</div></div>`;
   }
   function showError(msg){els.result.innerHTML=`<span class="status error">! Check input</span><p class="note">${msg}</p>`;els.result.classList.add('show');}
+  function clearCalculation(){
+    els.result.innerHTML='';
+    els.result.classList.remove('show');
+    renderEmptyVisual();
+  }
 
   function calculate(scroll=false){
     syncInputsToState();
@@ -197,11 +206,12 @@
 
     if(solved.exact){
       const r=solved.exact, plateUg=r.sumUg*2,totalUg=plateUg+equipUg;
-      els.liveVisual.innerHTML=visualHTML(r.combo,equipUg,totalUg);
-      els.result.innerHTML=`<span class="status exact">✓ Exact even load</span><div class="big-number">${displayWeightUg(r.sumUg)}</div><div class="big-caption">plates on each side</div><div class="summary-grid"><div class="summary-box"><span>Plate weight</span><strong>${displayWeightUg(plateUg)}</strong></div><div class="summary-box"><span>Total plates</span><strong>${r.combo.length*2}</strong></div><div class="summary-box"><span>${state.equipment==='barbell'?'Barbell':'Sled'} weight</span><strong>${displayWeightUg(equipUg)}</strong></div><div class="summary-box"><span>System total</span><strong>${displayWeightUg(totalUg)}</strong></div></div><div class="side-title">Load on each side, inside → outside</div><div class="plates">${platesHTML(r.combo)}</div><ol class="steps">${groupedSteps(r.combo)}</ol>${state.includeEquipment?'':`<p class="note">Your target is plate-only weight. Including the ${state.equipment}, the full system weight is ${displayWeightUg(totalUg)}.</p>`}`;
+      els.liveVisual.innerHTML=visualHTML(r.combo,equipUg,plateUg);
+      const equipmentSummary=state.includeEquipment?`<div class="summary-box"><span>${state.equipment==='barbell'?'Barbell':'Sled'} weight</span><strong>${displayWeightUg(equipUg)}</strong></div><div class="summary-box"><span>System total</span><strong>${displayWeightUg(totalUg)}</strong></div>`:'';
+      els.result.innerHTML=`<span class="status exact">✓ Exact even load</span><div class="big-number">${displayWeightUg(r.sumUg)}</div><div class="big-caption">plates on each side</div><div class="summary-grid"><div class="summary-box"><span>Plate weight</span><strong>${displayWeightUg(plateUg)}</strong></div><div class="summary-box"><span>Total plates</span><strong>${r.combo.length*2}</strong></div>${equipmentSummary}</div><div class="side-title">Load on each side, inside → outside</div><div class="plates">${platesHTML(r.combo)}</div><ol class="steps">${groupedSteps(r.combo)}</ol>`;
     }else{
       const primary=solved.lower||solved.higher;
-      if(primary){const totalUg=primary.sumUg*2+equipUg;els.liveVisual.innerHTML=visualHTML(primary.combo,equipUg,totalUg);}
+      if(primary){const plateUg=primary.sumUg*2;els.liveVisual.innerHTML=visualHTML(primary.combo,equipUg,plateUg);}
       const alts=[solved.lower?altBlock(solved.lower,state.targetUg,equipUg,state.includeEquipment,'Closest lighter'):'',solved.higher?altBlock(solved.higher,state.targetUg,equipUg,state.includeEquipment,'Closest heavier'):''].join('');
       els.result.innerHTML=`<span class="status near">≈ No exact match</span><h2 class="section-title" style="margin-bottom:4px">Nearest even loads</h2><p class="note" style="margin-top:0">Your current physical plate inventory cannot hit ${displayWeightUg(state.targetUg)} exactly while keeping both sides equal.</p><div class="alternatives">${alts}</div>`;
     }
@@ -210,7 +220,7 @@
   }
 
   function syncInputsToState(){
-    const t=Number(els.target.value); if(Number.isFinite(t)&&t>=0)state.targetUg=toUg(t,state.unit);
+    const t=Number(els.target.value); state.targetUg=els.target.value!==''&&Number.isFinite(t)&&t>=0?toUg(t,state.unit):null;
     const e=Number(els.equipWeight.value); if(Number.isFinite(e)&&e>=0)state.equipmentUg[state.equipment]=toUg(e,state.unit);
     state.includeEquipment=els.includeEquipment.checked;
   }
@@ -240,17 +250,29 @@
   els.addCustom.addEventListener('click',addPlate);
   els.saveInventory.addEventListener('click',()=>{syncInputsToState();save(true);});
   els.resetInventory.addEventListener('click',resetPlates);
-  els.calculate.addEventListener('click',()=>calculate(true));
   els.customPlate.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addPlate();}});
-  els.includeEquipment.addEventListener('change',()=>{state.includeEquipment=els.includeEquipment.checked;save(false);if(state.targetUg!=null)calculate(false);});
-  els.target.addEventListener('input',()=>{const v=Number(els.target.value);state.targetUg=Number.isFinite(v)&&v>=0?toUg(v,state.unit):null;save(false);});
-  els.target.addEventListener('change',()=>{if(state.targetUg!=null)calculate(false);});
-  els.equipWeight.addEventListener('input',()=>{const v=Number(els.equipWeight.value);if(Number.isFinite(v)&&v>=0){state.equipmentUg[state.equipment]=toUg(v,state.unit);save(false);}});
-  els.equipWeight.addEventListener('change',()=>{if(state.targetUg!=null)calculate(false);});
+  els.includeEquipment.addEventListener('change',()=>{
+    state.includeEquipment=els.includeEquipment.checked;
+    renderInputs();
+    save(false);
+    if(state.targetUg!=null)calculate(false); else clearCalculation();
+  });
+  els.target.addEventListener('input',()=>{
+    const v=Number(els.target.value);
+    state.targetUg=els.target.value!==''&&Number.isFinite(v)&&v>=0?toUg(v,state.unit):null;
+    save(false);
+    if(state.targetUg!=null)calculate(false); else clearCalculation();
+  });
+  els.equipWeight.addEventListener('input',()=>{
+    const v=Number(els.equipWeight.value);
+    if(Number.isFinite(v)&&v>=0){
+      state.equipmentUg[state.equipment]=toUg(v,state.unit);
+      save(false);
+      if(state.includeEquipment&&state.targetUg!=null)calculate(false);
+    }
+  });
 
   load();
-  els.runtime.classList.add('ready');
-  els.runtime.innerHTML='<strong>Interactive mode ready</strong>Controls are active. Your one plate inventory and app settings save locally on this device.';
   renderInputs(); renderPlates(); renderEmptyVisual();
   if(state.targetUg!=null) calculate(false);
   if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./sw.js').catch(()=>{});
