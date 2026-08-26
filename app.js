@@ -41,11 +41,10 @@
     openSetup:$('openSetup'),
     closeSetup:$('closeSetup'),
     setupBackdrop:$('setupBackdrop'),
-    equipWeight:$('equipmentWeight'),
+    barbellWeight:$('barbellWeight'),
+    sledWeight:$('sledWeight'),
     unitSegment:$('unitSegment'),
     equipSegment:$('equipmentSegment'),
-    equipmentName:$('equipmentName'),
-    equipmentWeightLabel:$('equipmentWeightLabel'),
     plateGrid:$('plateGrid'),
     customPlate:$('customPlate'),
     addCustom:$('addCustom'),
@@ -130,8 +129,6 @@
     renderSegments();
     els.includeEquipment.checked=state.includeEquipment;
     const isBar=state.equipment==='barbell';
-    els.equipmentName.textContent=isBar?'Barbell':'Sled';
-    els.equipmentWeightLabel.textContent=isBar?'starting weight':'starting resistance';
     els.includeLabel.textContent=isBar?'Include barbell weight':'Include sled resistance';
     els.includeHelp.textContent=state.includeEquipment
       ? 'Your target represents the full loaded weight.'
@@ -139,8 +136,11 @@
     if(state.targetUg!=null && document.activeElement!==els.target){
       els.target.value=fmt(fromUg(state.targetUg,state.unit),3);
     }
-    if(document.activeElement!==els.equipWeight){
-      els.equipWeight.value=fmt(fromUg(state.equipmentUg[state.equipment],state.unit),3);
+    if(document.activeElement!==els.barbellWeight){
+      els.barbellWeight.value=fmt(fromUg(state.equipmentUg.barbell,state.unit),3);
+    }
+    if(document.activeElement!==els.sledWeight){
+      els.sledWeight.value=fmt(fromUg(state.equipmentUg.sled,state.unit),3);
     }
   }
 
@@ -403,10 +403,16 @@
     const t=Number(els.target.value);
     state.targetUg=els.target.value!==''&&Number.isFinite(t)&&t>=0?toUg(t,state.unit):null;
 
-    const e=Number(els.equipWeight.value);
-    if(Number.isFinite(e)&&e>=0){
-      state.equipmentUg[state.equipment]=toUg(e,state.unit);
+    const bar=Number(els.barbellWeight.value);
+    if(Number.isFinite(bar)&&bar>=0){
+      state.equipmentUg.barbell=toUg(bar,state.unit);
     }
+
+    const sled=Number(els.sledWeight.value);
+    if(Number.isFinite(sled)&&sled>=0){
+      state.equipmentUg.sled=toUg(sled,state.unit);
+    }
+
     state.includeEquipment=els.includeEquipment.checked;
   }
 
@@ -524,12 +530,21 @@
     else clearCalculation();
   });
 
-  els.equipWeight.addEventListener('input',()=>{
-    const v=Number(els.equipWeight.value);
+  els.barbellWeight.addEventListener('input',()=>{
+    const v=Number(els.barbellWeight.value);
     if(Number.isFinite(v)&&v>=0){
-      state.equipmentUg[state.equipment]=toUg(v,state.unit);
+      state.equipmentUg.barbell=toUg(v,state.unit);
       save();
-      if(state.includeEquipment&&state.targetUg!=null)calculate();
+      if(state.equipment==='barbell'&&state.includeEquipment&&state.targetUg!=null) calculate();
+    }
+  });
+
+  els.sledWeight.addEventListener('input',()=>{
+    const v=Number(els.sledWeight.value);
+    if(Number.isFinite(v)&&v>=0){
+      state.equipmentUg.sled=toUg(v,state.unit);
+      save();
+      if(state.equipment==='sled'&&state.includeEquipment&&state.targetUg!=null) calculate();
     }
   });
 
