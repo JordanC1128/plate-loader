@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icon-192.png" />
   <title>Plate Loader</title>
-  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 <main class="app">
@@ -85,11 +85,18 @@
     <div class="settings-scroll">
       <section class="settings-group">
         <h3>Starting weight / resistance</h3>
-        <p class="settings-description">Set the empty barbell weight or sled starting resistance for the equipment selected on the main screen.</p>
+        <p class="settings-description">These values are saved independently. The equipment selected on the main screen determines which one is used in the calculation.</p>
         <div class="field setup-field">
-          <label class="label" for="equipmentWeight"><span id="equipmentName">Barbell</span> <span id="equipmentWeightLabel">starting weight</span></label>
+          <label class="label" for="barbellWeight">Barbell starting weight</label>
           <div class="input-wrap">
-            <input id="equipmentWeight" type="number" min="0" step="any" inputmode="decimal" value="45">
+            <input id="barbellWeight" type="number" min="0" step="any" inputmode="decimal" value="45">
+            <span class="suffix unitText">lb</span>
+          </div>
+        </div>
+        <div class="field setup-field">
+          <label class="label" for="sledWeight">Sled starting resistance</label>
+          <div class="input-wrap">
+            <input id="sledWeight" type="number" min="0" step="any" inputmode="decimal" value="0">
             <span class="suffix unitText">lb</span>
           </div>
         </div>
@@ -126,6 +133,6 @@
   </section>
 </div>
 
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>
