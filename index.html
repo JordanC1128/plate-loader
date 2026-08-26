@@ -14,71 +14,112 @@
 </head>
 <body>
 <main class="app">
-  <header>
-    <h1>Plate Loader</h1>
-    <p class="subtitle">Build an evenly loaded barbell or sled using the plates you actually have.</p>
+  <header class="topbar">
+    <div>
+      <h1>Plate Loader</h1>
+      <p class="subtitle">Fast, even plate loading for your current equipment.</p>
+    </div>
+    <button class="setup-button" id="openSetup" type="button" aria-haspopup="dialog" aria-controls="setupBackdrop">
+      <span aria-hidden="true">⚙︎</span> Setup
+    </button>
   </header>
 
-  <section class="card">
-    <h2 class="section-title">Setup</h2>
-    <div class="field">
-      <label class="label">Display unit</label>
-      <div class="segmented" id="unitSegment">
-        <button type="button" data-unit="lb" class="active" aria-pressed="true">Pounds</button>
-        <button type="button" data-unit="kg" aria-pressed="false">Kilograms</button>
-      </div>
+  <section class="card target-card">
+    <label class="target-label" for="targetWeight">Target weight</label>
+    <div class="target-input-wrap">
+      <input id="targetWeight" type="number" min="0" step="any" inputmode="decimal" placeholder="225" autocomplete="off">
+      <span class="target-unit unitText">lb</span>
     </div>
-    <div class="field">
-      <label class="label">Equipment</label>
-      <div class="segmented" id="equipmentSegment">
-        <button type="button" data-equipment="barbell" class="active" aria-pressed="true">Barbell</button>
-        <button type="button" data-equipment="sled" aria-pressed="false">Sled</button>
-      </div>
-    </div>
-    <div class="field">
-      <label class="label" for="targetWeight">Target weight</label>
-      <div class="input-wrap"><input id="targetWeight" type="number" min="0" step="any" inputmode="decimal" placeholder="150"><span class="suffix unitText">lb</span></div>
-    </div>
-    <div class="toggle-row">
+    <div class="toggle-row main-toggle">
       <div class="toggle-copy">
-        <strong>Target includes equipment weight</strong>
-        <span>On: target is the full loaded weight. Off: target is plates only.</span>
+        <strong id="includeLabel">Include barbell weight</strong>
+        <span id="includeHelp">Your target represents the full loaded weight.</span>
       </div>
-      <label class="switch" aria-label="Target includes equipment weight"><input id="includeEquipment" type="checkbox" checked><span></span></label>
-    </div>
-    <div class="field" id="equipmentWeightField" hidden>
-      <label class="label" for="equipmentWeight"><span id="equipmentName">Barbell</span> weight / starting resistance</label>
-      <div class="input-wrap"><input id="equipmentWeight" type="number" min="0" step="any" inputmode="decimal" value="45"><span class="suffix unitText">lb</span></div>
+      <label class="switch" aria-label="Include equipment weight">
+        <input id="includeEquipment" type="checkbox" checked>
+        <span></span>
+      </label>
     </div>
   </section>
 
-  <section class="card">
-    <h2 class="section-title">Available plates</h2>
-    <div class="plate-grid" id="plateGrid"></div>
-    <p class="inventory-help">This is <strong>one physical inventory</strong>. Changing lb ↔ kg only converts the labels; it does not create a second set of plates. Tap a plate to mark it available or unavailable.</p>
-    <div class="custom-row">
-      <input id="customPlate" type="number" min="0" step="any" inputmode="decimal" placeholder="Add another plate size">
-      <button class="secondary-btn" id="addCustom" type="button">Add</button>
+  <section class="card load-card">
+    <div class="load-heading">
+      <h2 class="section-title">Your load</h2>
+      <span class="live-badge">LIVE</span>
     </div>
-    <div class="custom-list" id="customList"></div>
-    <div class="inventory-actions">
-      <button class="save-btn" id="saveInventory" type="button">Save Inventory</button>
-      <button class="reset-btn" id="resetInventory" type="button">Reset Plates</button>
-    </div>
-    <div class="save-state" id="saveState" aria-live="polite"></div>
-  </section>
-
-  <section class="card">
-    <h2 class="section-title">Load preview</h2>
     <div class="visual-wrap" id="liveVisual">
       <div class="visual-label">Barbell preview</div>
-      <div class="bar-visual"><div class="bar-shaft"></div><div class="bar-collar left"></div><div class="bar-collar right"></div><div class="visual-empty">Enter a target to build the visual.</div></div>
+      <div class="bar-visual">
+        <div class="bar-shaft"></div>
+        <div class="bar-collar left"></div>
+        <div class="bar-collar right"></div>
+        <div class="visual-empty">Enter a target weight to build the load.</div>
+      </div>
     </div>
+    <div class="result-card" id="resultCard" aria-live="polite"></div>
   </section>
 
-  <section class="card result-card" id="resultCard" aria-live="polite"></section>
   <footer>Always load the same plates on both sides. For a machine sled, use the manufacturer’s stated starting resistance when available.</footer>
 </main>
+
+<div class="sheet-backdrop" id="setupBackdrop" hidden>
+  <section class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div class="sheet-header">
+      <div>
+        <p class="sheet-kicker">PLATE LOADER</p>
+        <h2 id="setupTitle">Setup</h2>
+      </div>
+      <button class="done-button" id="closeSetup" type="button">Done</button>
+    </div>
+
+    <div class="settings-scroll">
+      <section class="settings-group">
+        <h3>Equipment</h3>
+        <p class="settings-description">Choose the equipment this calculator should load.</p>
+        <div class="segmented" id="equipmentSegment">
+          <button type="button" data-equipment="barbell" class="active" aria-pressed="true">Barbell</button>
+          <button type="button" data-equipment="sled" aria-pressed="false">Sled</button>
+        </div>
+        <div class="field setup-field">
+          <label class="label" for="equipmentWeight"><span id="equipmentName">Barbell</span> <span id="equipmentWeightLabel">starting weight</span></label>
+          <div class="input-wrap">
+            <input id="equipmentWeight" type="number" min="0" step="any" inputmode="decimal" value="45">
+            <span class="suffix unitText">lb</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="settings-group">
+        <h3>Weight units</h3>
+        <p class="settings-description">Your single plate inventory is converted automatically when you switch units.</p>
+        <div class="segmented" id="unitSegment">
+          <button type="button" data-unit="lb" class="active" aria-pressed="true">Pounds</button>
+          <button type="button" data-unit="kg" aria-pressed="false">Kilograms</button>
+        </div>
+      </section>
+
+      <section class="settings-group">
+        <div class="settings-title-row">
+          <div>
+            <h3>Plate inventory</h3>
+            <p class="settings-description">Tap a size to make it available or unavailable.</p>
+          </div>
+        </div>
+        <div class="plate-grid" id="plateGrid"></div>
+        <div class="custom-row">
+          <input id="customPlate" type="number" min="0" step="any" inputmode="decimal" placeholder="Add plate size">
+          <button class="secondary-btn" id="addCustom" type="button">Add</button>
+        </div>
+        <div class="custom-list" id="customList"></div>
+        <div class="inventory-footer">
+          <span id="saveState">Changes save automatically.</span>
+          <button class="reset-btn" id="resetInventory" type="button">Reset plates</button>
+        </div>
+      </section>
+    </div>
+  </section>
+</div>
 
 <script src="app.js"></script>
 </body>
