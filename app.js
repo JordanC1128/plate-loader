@@ -1,0 +1,257 @@
+(() => {
+  'use strict';
+  const LB_TO_KG = 0.45359237;
+  const UG_PER_KG = 1000000000;
+  const STORAGE_KEY = 'plateLoaderUnifiedV3';
+  let uid = 1;
+
+  const defaultCatalog = () => [45,35,25,10,5,2.5].map(v => makePlate(v,'lb',true,false));
+
+  const state = {
+    unit:'lb', equipment:'barbell', includeEquipment:true,
+    targetUg:null,
+    equipmentUg:{barbell:toUg(45,'lb'), sled:0},
+    plates:defaultCatalog()
+  };
+
+  const $ = id => document.getElementById(id);
+  const els = {
+    runtime:$('runtimeStatus'), target:$('targetWeight'), equipWeight:$('equipmentWeight'), includeEquipment:$('includeEquipment'),
+    unitSegment:$('unitSegment'), equipSegment:$('equipmentSegment'), equipmentName:$('equipmentName'), plateGrid:$('plateGrid'),
+    customPlate:$('customPlate'), addCustom:$('addCustom'), customList:$('customList'), saveInventory:$('saveInventory'),
+    resetInventory:$('resetInventory'), saveState:$('saveState'), calculate:$('calculateBtn'), result:$('resultCard'), liveVisual:$('liveVisual')
+  };
+
+  function toUg(value, unit){
+    const n = Number(value);
+    if(!Number.isFinite(n)) return null;
+    const kg = unit === 'lb' ? n * LB_TO_KG : n;
+    return Math.round(kg * UG_PER_KG);
+  }
+  function fromUg(ug, unit){
+    if(ug == null) return null;
+    const kg = ug / UG_PER_KG;
+    return unit === 'lb' ? kg / LB_TO_KG : kg;
+  }
+  function makePlate(value,unit,enabled=true,custom=true){
+    return { id:`p${Date.now()}_${uid++}`, ug:toUg(value,unit), originValue:Number(value), originUnit:unit, enabled, custom };
+  }
+  function fmt(n,max=3){
+    if(!Number.isFinite(Number(n))) return '';
+    return Number(Number(n).toFixed(max)).toLocaleString(undefined,{maximumFractionDigits:max});
+  }
+  function displayWeightUg(ug){ return `${fmt(fromUg(ug,state.unit))} ${state.unit}`; }
+  function displayPlate(p){ return `${fmt(fromUg(p.ug,state.unit), state.unit==='lb'?2:3)} ${state.unit}`; }
+  function originLabel(p){
+    const shown = fromUg(p.ug,state.unit);
+    if(p.originUnit === state.unit || Math.abs(shown-p.originValue)<0.0005) return '';
+    return `${fmt(p.originValue,3)} ${p.originUnit} plate`;
+  }
+
+  function save(showMessage=false){
+    try{
+      const payload = {unit:state.unit,equipment:state.equipment,includeEquipment:state.includeEquipment,targetUg:state.targetUg,equipmentUg:state.equipmentUg,plates:state.plates};
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(payload));
+      if(showMessage){
+        els.saveState.textContent='✓ Plate inventory saved on this device';
+        setTimeout(()=>{ if(els.saveState.textContent.startsWith('✓')) els.saveState.textContent=''; },2200);
+      }
+    }catch(e){ if(showMessage) els.saveState.textContent='Could not save in this browser session.'; }
+  }
+  function load(){
+    try{
+      const raw=localStorage.getItem(STORAGE_KEY); if(!raw) return;
+      const s=JSON.parse(raw);
+      if(s.unit==='lb'||s.unit==='kg') state.unit=s.unit;
+      if(s.equipment==='barbell'||s.equipment==='sled') state.equipment=s.equipment;
+      if(typeof s.includeEquipment==='boolean') state.includeEquipment=s.includeEquipment;
+      if(Number.isFinite(s.targetUg)) state.targetUg=s.targetUg;
+      if(s.equipmentUg && Number.isFinite(s.equipmentUg.barbell) && Number.isFinite(s.equipmentUg.sled)) state.equipmentUg=s.equipmentUg;
+      if(Array.isArray(s.plates) && s.plates.length){
+        state.plates=s.plates.filter(p=>p && Number.isFinite(p.ug) && p.ug>0).map(p=>({id:p.id||`p${Date.now()}_${uid++}`,ug:Math.round(p.ug),originValue:Number(p.originValue)||fromUg(p.ug,p.originUnit==='kg'?'kg':'lb'),originUnit:p.originUnit==='kg'?'kg':'lb',enabled:p.enabled!==false,custom:!!p.custom}));
+      }
+    }catch(e){}
+  }
+
+  function renderSegments(){
+    els.unitSegment.querySelectorAll('button').forEach(b=>{const a=b.dataset.unit===state.unit;b.classList.toggle('active',a);b.setAttribute('aria-pressed',String(a));});
+    els.equipSegment.querySelectorAll('button').forEach(b=>{const a=b.dataset.equipment===state.equipment;b.classList.toggle('active',a);b.setAttribute('aria-pressed',String(a));});
+    document.querySelectorAll('.unitText').forEach(e=>e.textContent=state.unit);
+    els.equipmentName.textContent=state.equipment==='barbell'?'Barbell':'Sled';
+  }
+  function renderInputs(){
+    renderSegments();
+    els.includeEquipment.checked=state.includeEquipment;
+    if(state.targetUg!=null && document.activeElement!==els.target) els.target.value=fmt(fromUg(state.targetUg,state.unit),3);
+    if(document.activeElement!==els.equipWeight) els.equipWeight.value=fmt(fromUg(state.equipmentUg[state.equipment],state.unit),3);
+  }
+  function renderPlates(){
+    els.plateGrid.innerHTML='';
+    state.plates.forEach(p=>{
+      const b=document.createElement('button'); b.type='button'; b.className='plate-option'+(p.enabled?' selected':''); b.dataset.plateId=p.id; b.setAttribute('aria-pressed',String(p.enabled));
+      const sub=originLabel(p); b.innerHTML=`${displayPlate(p)}${sub?`<small>${sub}</small>`:''}`;
+      els.plateGrid.appendChild(b);
+    });
+    els.customList.innerHTML='';
+    state.plates.filter(p=>p.custom).forEach(p=>{
+      const b=document.createElement('button'); b.type='button'; b.className='custom-chip'; b.dataset.removePlate=p.id; b.innerHTML=`Remove ${displayPlate(p)} <span>×</span>`; els.customList.appendChild(b);
+    });
+  }
+  function renderEmptyVisual(){
+    if(state.equipment==='barbell'){
+      els.liveVisual.innerHTML=`<div class="visual-label">Barbell preview</div><div class="bar-visual"><div class="bar-shaft"></div><div class="bar-collar left"></div><div class="bar-collar right"></div><div class="visual-empty">Enter a target and calculate to build the visual.</div></div>`;
+    }else{
+      els.liveVisual.innerHTML=`<div class="visual-label">Sled preview</div><div class="sled-visual"><div class="sled-frame"></div><div class="sled-platform"></div><div class="sled-horn left"></div><div class="sled-horn right"></div><div class="visual-empty">Enter a target and calculate to build the visual.</div></div>`;
+    }
+  }
+
+  function gcd(a,b){a=Math.abs(a);b=Math.abs(b);while(b){const t=b;b=a%b;a=t;}return a;}
+  function gcdArray(a){return a.reduce((g,n)=>gcd(g,n),0)||1;}
+
+  function solve(targetUg, plates){
+    if(targetUg<0) return {error:'Target plate load cannot be negative.'};
+    if(targetUg===0) return {exact:{combo:[],sumUg:0},lower:null,higher:null};
+    const enabled=plates.filter(p=>p.enabled).sort((a,b)=>b.ug-a.ug);
+    if(!enabled.length) return {error:'Select at least one available plate size.'};
+
+    const originUnits=[...new Set(enabled.map(p=>p.originUnit))];
+    const basis=originUnits.length===1?originUnits[0]:state.unit;
+    const scale=1000;
+    const coins=enabled.map(p=>({p,units:Math.max(1,Math.round(fromUg(p.ug,basis)*scale))}));
+    const targetUnits=Math.max(0,Math.round(fromUg(targetUg,basis)*scale));
+    const g=gcdArray(coins.map(c=>c.units));
+    const normCoins=coins.map(c=>({...c,n:Math.max(1,Math.round(c.units/g))}));
+    const normTarget=targetUnits/g;
+    const maxCoin=Math.max(...normCoins.map(c=>c.n));
+    const cap=Math.ceil(normTarget)+maxCoin*2;
+    if(cap>1500000) return {error:'That load is too large for the current plate increments. Try a smaller target or fewer tiny custom plate sizes.'};
+
+    const INF=1e9;
+    const dp=new Int32Array(cap+1); const prev=new Int32Array(cap+1); const coinIdx=new Int16Array(cap+1);
+    dp.fill(INF); prev.fill(-1); coinIdx.fill(-1); dp[0]=0;
+    for(let amt=1;amt<=cap;amt++){
+      for(let i=0;i<normCoins.length;i++){
+        const c=normCoins[i].n;
+        if(c<=amt && dp[amt-c]!==INF && dp[amt-c]+1<dp[amt]){dp[amt]=dp[amt-c]+1;prev[amt]=amt-c;coinIdx[amt]=i;}
+      }
+    }
+    const reconstruct=idx=>{
+      if(idx<0||idx>cap||dp[idx]===INF) return null;
+      const combo=[]; let cur=idx;
+      while(cur>0){const ci=coinIdx[cur];if(ci<0)return null;combo.push(normCoins[ci].p);cur=prev[cur];}
+      combo.sort((a,b)=>b.ug-a.ug); const sumUg=combo.reduce((s,p)=>s+p.ug,0); return {combo,sumUg};
+    };
+
+    const center=Math.round(normTarget);
+    let exact=null, lower=null, higher=null;
+    const seen=new Set();
+    const consider=idx=>{
+      if(idx<0||idx>cap||seen.has(idx)||dp[idx]===INF)return; seen.add(idx);
+      const r=reconstruct(idx); if(!r)return;
+      if(r.sumUg===targetUg){ if(!exact||r.combo.length<exact.combo.length) exact=r; }
+      else if(r.sumUg<targetUg){ if(!lower||r.sumUg>lower.sumUg||(r.sumUg===lower.sumUg&&r.combo.length<lower.combo.length)) lower=r; }
+      else { if(!higher||r.sumUg<higher.sumUg||(r.sumUg===higher.sumUg&&r.combo.length<higher.combo.length)) higher=r; }
+    };
+    const radius=Math.min(cap,Math.max(maxCoin*3,5000));
+    for(let d=0;d<=radius;d++){
+      consider(center-d); if(d) consider(center+d);
+      if(exact && lower && higher) break;
+      if(lower && higher && d>maxCoin) break;
+    }
+    if(exact) return {exact,lower:null,higher:null};
+    if(!lower || !higher){
+      for(let i=0;i<=cap;i++){ if(dp[i]!==INF) consider(i); }
+    }
+    return {exact:null,lower,higher};
+  }
+
+  function plateHeight(p,combo){const max=Math.max(...combo.map(x=>x.ug),1),min=Math.min(...combo.map(x=>x.ug),max);if(max===min)return 72;return Math.round(44+((p.ug-min)/(max-min))*50);}
+  function discsHTML(combo){return combo.map(p=>`<div class="plate-disc" style="height:${plateHeight(p,combo)}px"><span>${fmt(fromUg(p.ug,state.unit),2)}</span></div>`).join('');}
+  function visualHTML(combo,equipUg,totalUg){
+    const discs=discsHTML(combo), perSide=combo.reduce((s,p)=>s+p.ug,0);
+    const perSideText=combo.length?combo.map(p=>fmt(fromUg(p.ug,state.unit),2)).join(' + '):'No plates';
+    if(state.equipment==='barbell') return `<div class="visual-label">Barbell · ${displayWeightUg(equipUg)} empty weight</div><div class="bar-visual"><div class="bar-center-label">${displayWeightUg(totalUg)} total</div><div class="bar-shaft"></div><div class="bar-collar left"></div><div class="bar-collar right"></div><div class="bar-plates left">${discs}</div><div class="bar-plates right">${discs}</div>${combo.length?'':'<div class="visual-empty">No plates needed for this load.</div>'}</div><div class="visual-total"><strong>${perSideText}</strong> on each side</div>`;
+    return `<div class="visual-label">Sled · ${displayWeightUg(equipUg)} starting weight/resistance</div><div class="sled-visual"><div class="sled-frame"></div><div class="sled-platform"></div><div class="sled-horn left"></div><div class="sled-horn right"></div><div class="sled-plates left">${discs}</div><div class="sled-plates right">${discs}</div>${combo.length?'':'<div class="visual-empty">No plates needed for this load.</div>'}</div><div class="visual-total"><strong>${displayWeightUg(totalUg)}</strong> total · ${displayWeightUg(perSide)} plates per side</div>`;
+  }
+  function platesHTML(combo){return combo.length?combo.map(p=>`<span class="plate-pill">${displayPlate(p)}</span>`).join(''):'<span class="note">No plates needed</span>';}
+  function groupedSteps(combo){
+    if(!combo.length)return '<li>No plates are needed.</li>';
+    const groups=[]; combo.forEach(p=>{const last=groups.at(-1);if(last&&last.ug===p.ug)last.count++;else groups.push({p,count:1});});
+    return groups.map(g=>`<li>Add ${g.count>1?`${g.count} × `:''}${displayPlate(g.p)} plate${g.count>1?'s':''} to <strong>each side</strong>.</li>`).join('');
+  }
+  function altBlock(r,targetUg,equipUg,included,label){
+    const plateUg=r.sumUg*2, actualUg=plateUg+equipUg, interpreted=included?actualUg:plateUg, diff=interpreted-targetUg;
+    return `<div class="alternative"><h3>${label}: ${displayWeightUg(interpreted)}</h3><p>${displayWeightUg(Math.abs(diff))} ${diff<0?'lighter':'heavier'} than target.</p><div class="side-title">Each side</div><div class="plates">${platesHTML(r.combo)}</div></div>`;
+  }
+  function showError(msg){els.result.innerHTML=`<span class="status error">! Check input</span><p class="note">${msg}</p>`;els.result.classList.add('show');}
+
+  function calculate(scroll=false){
+    syncInputsToState();
+    if(state.targetUg==null||state.targetUg<0)return showError('Enter a valid target weight.');
+    const equipUg=state.equipmentUg[state.equipment];
+    const plateTotalNeeded=state.targetUg-(state.includeEquipment?equipUg:0);
+    if(plateTotalNeeded<0)return showError(`Your target is lighter than the ${state.equipment} itself. Increase the target or turn off “Target includes equipment weight.”`);
+    const perSideTarget=Math.round(plateTotalNeeded/2);
+    const solved=solve(perSideTarget,state.plates);
+    if(solved.error)return showError(solved.error);
+
+    if(solved.exact){
+      const r=solved.exact, plateUg=r.sumUg*2,totalUg=plateUg+equipUg;
+      els.liveVisual.innerHTML=visualHTML(r.combo,equipUg,totalUg);
+      els.result.innerHTML=`<span class="status exact">✓ Exact even load</span><div class="big-number">${displayWeightUg(r.sumUg)}</div><div class="big-caption">plates on each side</div><div class="summary-grid"><div class="summary-box"><span>Plate weight</span><strong>${displayWeightUg(plateUg)}</strong></div><div class="summary-box"><span>Total plates</span><strong>${r.combo.length*2}</strong></div><div class="summary-box"><span>${state.equipment==='barbell'?'Barbell':'Sled'} weight</span><strong>${displayWeightUg(equipUg)}</strong></div><div class="summary-box"><span>System total</span><strong>${displayWeightUg(totalUg)}</strong></div></div><div class="side-title">Load on each side, inside → outside</div><div class="plates">${platesHTML(r.combo)}</div><ol class="steps">${groupedSteps(r.combo)}</ol>${state.includeEquipment?'':`<p class="note">Your target is plate-only weight. Including the ${state.equipment}, the full system weight is ${displayWeightUg(totalUg)}.</p>`}`;
+    }else{
+      const primary=solved.lower||solved.higher;
+      if(primary){const totalUg=primary.sumUg*2+equipUg;els.liveVisual.innerHTML=visualHTML(primary.combo,equipUg,totalUg);}
+      const alts=[solved.lower?altBlock(solved.lower,state.targetUg,equipUg,state.includeEquipment,'Closest lighter'):'',solved.higher?altBlock(solved.higher,state.targetUg,equipUg,state.includeEquipment,'Closest heavier'):''].join('');
+      els.result.innerHTML=`<span class="status near">≈ No exact match</span><h2 class="section-title" style="margin-bottom:4px">Nearest even loads</h2><p class="note" style="margin-top:0">Your current physical plate inventory cannot hit ${displayWeightUg(state.targetUg)} exactly while keeping both sides equal.</p><div class="alternatives">${alts}</div>`;
+    }
+    els.result.classList.add('show'); save(false);
+    if(scroll) setTimeout(()=>els.liveVisual.scrollIntoView({behavior:'smooth',block:'center'}),30);
+  }
+
+  function syncInputsToState(){
+    const t=Number(els.target.value); if(Number.isFinite(t)&&t>=0)state.targetUg=toUg(t,state.unit);
+    const e=Number(els.equipWeight.value); if(Number.isFinite(e)&&e>=0)state.equipmentUg[state.equipment]=toUg(e,state.unit);
+    state.includeEquipment=els.includeEquipment.checked;
+  }
+  function setUnit(unit){
+    if(unit===state.unit)return; syncInputsToState(); state.unit=unit; renderInputs(); renderPlates(); renderEmptyVisual(); save(false);
+    if(state.targetUg!=null) calculate(false);
+  }
+  function setEquipment(type){
+    if(type===state.equipment)return; syncInputsToState(); state.equipment=type; renderInputs(); renderEmptyVisual(); save(false);
+    if(state.targetUg!=null) calculate(false);
+  }
+  function addPlate(){
+    const v=Number(els.customPlate.value); if(!Number.isFinite(v)||v<=0)return;
+    const ug=toUg(v,state.unit);
+    const existing=state.plates.find(p=>Math.abs(p.ug-ug)<=5);
+    if(existing) existing.enabled=true; else state.plates.push(makePlate(v,state.unit,true,true));
+    els.customPlate.value=''; renderPlates(); save(true); if(state.targetUg!=null)calculate(false);
+  }
+  function resetPlates(){state.plates=defaultCatalog();renderPlates();save(true);if(state.targetUg!=null)calculate(false);}
+
+  document.addEventListener('click',e=>{
+    const unit=e.target.closest('[data-unit]'); if(unit){setUnit(unit.dataset.unit);return;}
+    const eq=e.target.closest('[data-equipment]'); if(eq){setEquipment(eq.dataset.equipment);return;}
+    const plate=e.target.closest('[data-plate-id]'); if(plate){const p=state.plates.find(x=>x.id===plate.dataset.plateId);if(p){p.enabled=!p.enabled;renderPlates();save(false);if(state.targetUg!=null)calculate(false);}return;}
+    const remove=e.target.closest('[data-remove-plate]'); if(remove){state.plates=state.plates.filter(p=>p.id!==remove.dataset.removePlate);renderPlates();save(true);if(state.targetUg!=null)calculate(false);return;}
+  });
+  els.addCustom.addEventListener('click',addPlate);
+  els.saveInventory.addEventListener('click',()=>{syncInputsToState();save(true);});
+  els.resetInventory.addEventListener('click',resetPlates);
+  els.calculate.addEventListener('click',()=>calculate(true));
+  els.customPlate.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addPlate();}});
+  els.includeEquipment.addEventListener('change',()=>{state.includeEquipment=els.includeEquipment.checked;save(false);if(state.targetUg!=null)calculate(false);});
+  els.target.addEventListener('input',()=>{const v=Number(els.target.value);state.targetUg=Number.isFinite(v)&&v>=0?toUg(v,state.unit):null;save(false);});
+  els.target.addEventListener('change',()=>{if(state.targetUg!=null)calculate(false);});
+  els.equipWeight.addEventListener('input',()=>{const v=Number(els.equipWeight.value);if(Number.isFinite(v)&&v>=0){state.equipmentUg[state.equipment]=toUg(v,state.unit);save(false);}});
+  els.equipWeight.addEventListener('change',()=>{if(state.targetUg!=null)calculate(false);});
+
+  load();
+  els.runtime.classList.add('ready');
+  els.runtime.innerHTML='<strong>Interactive mode ready</strong>Controls are active. Your one plate inventory and app settings save locally on this device.';
+  renderInputs(); renderPlates(); renderEmptyVisual();
+  if(state.targetUg!=null) calculate(false);
+  if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+})();
