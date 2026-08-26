@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0c10" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Plate Loader" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <title>Plate Loader</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="app">
+  <header>
+    <h1>Plate Loader</h1>
+    <p class="subtitle">Build an evenly loaded barbell or sled using the plates you actually have.</p>
+  </header>
+
+  <div class="runtime" id="runtimeStatus">
+    <strong>Preview mode — controls will not work here</strong>
+    JavaScript is not running in this viewer. Use the app from a normal Safari web address (or install the hosted PWA) for interactive controls and saved settings.
+  </div>
+
+  <section class="card">
+    <h2 class="section-title">Setup</h2>
+    <div class="field">
+      <label class="label">Display unit</label>
+      <div class="segmented" id="unitSegment">
+        <button type="button" data-unit="lb" class="active" aria-pressed="true">Pounds</button>
+        <button type="button" data-unit="kg" aria-pressed="false">Kilograms</button>
+      </div>
+    </div>
+    <div class="field">
+      <label class="label">Equipment</label>
+      <div class="segmented" id="equipmentSegment">
+        <button type="button" data-equipment="barbell" class="active" aria-pressed="true">Barbell</button>
+        <button type="button" data-equipment="sled" aria-pressed="false">Sled</button>
+      </div>
+    </div>
+    <div class="field">
+      <label class="label" for="targetWeight">Target weight</label>
+      <div class="input-wrap"><input id="targetWeight" type="number" min="0" step="any" inputmode="decimal" placeholder="150"><span class="suffix unitText">lb</span></div>
+    </div>
+    <div class="field">
+      <label class="label" for="equipmentWeight"><span id="equipmentName">Barbell</span> weight / starting resistance</label>
+      <div class="input-wrap"><input id="equipmentWeight" type="number" min="0" step="any" inputmode="decimal" value="45"><span class="suffix unitText">lb</span></div>
+    </div>
+    <div class="toggle-row">
+      <div class="toggle-copy">
+        <strong>Target includes equipment weight</strong>
+        <span>On: target is the full loaded weight. Off: target is plates only.</span>
+      </div>
+      <label class="switch" aria-label="Target includes equipment weight"><input id="includeEquipment" type="checkbox" checked><span></span></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 class="section-title">Available plates</h2>
+    <div class="plate-grid" id="plateGrid"></div>
+    <p class="inventory-help">This is <strong>one physical inventory</strong>. Changing lb ↔ kg only converts the labels; it does not create a second set of plates. Tap a plate to mark it available or unavailable.</p>
+    <div class="custom-row">
+      <input id="customPlate" type="number" min="0" step="any" inputmode="decimal" placeholder="Add another plate size">
+      <button class="secondary-btn" id="addCustom" type="button">Add</button>
+    </div>
+    <div class="custom-list" id="customList"></div>
+    <div class="inventory-actions">
+      <button class="save-btn" id="saveInventory" type="button">Save Inventory</button>
+      <button class="reset-btn" id="resetInventory" type="button">Reset Plates</button>
+    </div>
+    <div class="save-state" id="saveState" aria-live="polite"></div>
+  </section>
+
+  <section class="card">
+    <h2 class="section-title">Load preview</h2>
+    <div class="visual-wrap" id="liveVisual">
+      <div class="visual-label">Barbell preview</div>
+      <div class="bar-visual"><div class="bar-shaft"></div><div class="bar-collar left"></div><div class="bar-collar right"></div><div class="visual-empty">Enter a target and calculate to build the visual.</div></div>
+    </div>
+  </section>
+
+  <button class="calculate" id="calculateBtn" type="button">Calculate Plates</button>
+  <section class="card result-card" id="resultCard" aria-live="polite"></section>
+  <footer>Always load the same plates on both sides. For a machine sled, use the manufacturer’s stated starting resistance when available.</footer>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
