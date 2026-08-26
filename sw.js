@@ -1,5 +1,5 @@
-const CACHE='plate-loader-v7';
-const ASSETS=['./index.html','./style.css?v=7','./app.js?v=7','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE='plate-loader-v8';
+const ASSETS=['./index.html','./style.css?v=8','./app.js?v=8','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install',event=>{
   self.skipWaiting();
