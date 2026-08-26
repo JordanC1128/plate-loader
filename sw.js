@@ -1,8 +1,29 @@
-const CACHE='plate-loader-v4';
-const ASSETS=['./','./index.html','./style.css','./app.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
-self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS))));
-self.addEventListener('activate',event=>event.waitUntil(Promise.all([
-  self.clients.claim(),
-  caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key))))
-])));
-self.addEventListener('fetch',event=>event.respondWith(caches.match(event.request).then(hit=>hit||fetch(event.request))));
+const CACHE='plate-loader-v5';
+const ASSETS=['./style.css?v=5','./app.js?v=5','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+
+self.addEventListener('install',event=>{
+  self.skipWaiting();
+  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)));
+});
+
+self.addEventListener('activate',event=>{
+  event.waitUntil(Promise.all([
+    self.clients.claim(),
+    caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key))))
+  ]));
+});
+
+self.addEventListener('fetch',event=>{
+  const req=event.request;
+  if(req.mode==='navigate'){
+    event.respondWith(fetch(req).catch(()=>caches.match('./index.html')));
+    return;
+  }
+  event.respondWith(
+    fetch(req).then(response=>{
+      const copy=response.clone();
+      caches.open(CACHE).then(cache=>cache.put(req,copy)).catch(()=>{});
+      return response;
+    }).catch(()=>caches.match(req))
+  );
+});
