@@ -1,5 +1,5 @@
-const CACHE='plate-loader-v5';
-const ASSETS=['./style.css?v=5','./app.js?v=5','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE='plate-loader-v6';
+const ASSETS=['./index.html','./style.css?v=6','./app.js?v=6','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install',event=>{
   self.skipWaiting();
@@ -16,7 +16,13 @@ self.addEventListener('activate',event=>{
 self.addEventListener('fetch',event=>{
   const req=event.request;
   if(req.mode==='navigate'){
-    event.respondWith(fetch(req).catch(()=>caches.match('./index.html')));
+    event.respondWith(
+      fetch(req).then(response=>{
+        const copy=response.clone();
+        caches.open(CACHE).then(cache=>cache.put('./index.html',copy)).catch(()=>{});
+        return response;
+      }).catch(()=>caches.match('./index.html'))
+    );
     return;
   }
   event.respondWith(
